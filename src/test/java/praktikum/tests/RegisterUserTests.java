@@ -22,7 +22,10 @@ public class RegisterUserTests extends BaseApiTest {
 
     @After
     public void cleanUp() {
-        TestUserFactory.deleteUser(createdUser);
+
+        if (createdUser != null) {
+            TestUserFactory.deleteUser(createdUser);
+        }
     }
 
     @Story("Успешная регистрация")
@@ -30,17 +33,8 @@ public class RegisterUserTests extends BaseApiTest {
     @Description("Регистрация нового уникального пользователя")
     @Severity(SeverityLevel.CRITICAL)
     public void registerNewUserSuccess() {
-        String email = TestDataGenerator.generateUniqueEmail();
-        String password = TestDataGenerator.generatePassword();
-        String name = TestDataGenerator.generateName();
-
-        ValidatableResponse response = authSteps.registerUser(email, password, name);
-        response.statusCode(HttpStatus.SC_OK);
-
-        assertTrue(authSteps.isSuccess(response));
-        String accessToken = authSteps.extractAccessToken(response);
-        assertNotNull(accessToken);
-        createdUser = new TestUser(email, password, name, accessToken, null);
+        createdUser = TestUserFactory.createUniqueUser();
+        assertNotNull("Access token не должен быть null", createdUser.getAccessToken());
     }
 
     @Story("Дубликат пользователя")
@@ -63,9 +57,37 @@ public class RegisterUserTests extends BaseApiTest {
 
     @Story("Обязательные поля")
     @Test
+    @Description("Регистрация без поля email")
+    @Severity(SeverityLevel.NORMAL)
+    public void registerMissingEmailFailure() {
+        String password = TestDataGenerator.generatePassword();
+        String name = TestDataGenerator.generateName();
+
+        ValidatableResponse response = authSteps.registerUser(null, password, name);
+        response.statusCode(HttpStatus.SC_FORBIDDEN)
+                .body("success", equalTo(false))
+                .body("message", equalTo("Email, password and name are required fields"));
+    }
+
+    @Story("Обязательные поля")
+    @Test
+    @Description("Регистрация без поля password")
+    @Severity(SeverityLevel.NORMAL)
+    public void registerMissingPasswordFailure() {
+        String email = TestDataGenerator.generateUniqueEmail();
+        String name = TestDataGenerator.generateName();
+
+        ValidatableResponse response = authSteps.registerUser(email, null, name);
+        response.statusCode(HttpStatus.SC_FORBIDDEN)
+                .body("success", equalTo(false))
+                .body("message", equalTo("Email, password and name are required fields"));
+    }
+
+    @Story("Обязательные поля")
+    @Test
     @Description("Регистрация без поля name")
     @Severity(SeverityLevel.NORMAL)
-    public void registerMissingNameFieldFailure() {
+    public void registerMissingNameFailure() {
         String email = TestDataGenerator.generateUniqueEmail();
         String password = TestDataGenerator.generatePassword();
 

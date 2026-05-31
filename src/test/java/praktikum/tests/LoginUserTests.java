@@ -4,6 +4,7 @@ import io.qameta.allure.*;
 import io.restassured.response.ValidatableResponse;
 import org.apache.http.HttpStatus;
 import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import praktikum.BaseApiTest;
 import praktikum.factories.TestUserFactory;
@@ -19,9 +20,16 @@ public class LoginUserTests extends BaseApiTest {
     private final AuthSteps authSteps = new AuthSteps();
     private TestUser createdUser;
 
+    @Before
+    public void setUpUser() {
+        createdUser = TestUserFactory.createUniqueUser();
+    }
+
     @After
     public void cleanUp() {
-        TestUserFactory.deleteUser(createdUser);
+        if (createdUser != null) {
+            TestUserFactory.deleteUser(createdUser);
+        }
     }
 
     @Story("Успешный вход")
@@ -29,8 +37,6 @@ public class LoginUserTests extends BaseApiTest {
     @Description("Вход под существующим пользователем")
     @Severity(SeverityLevel.CRITICAL)
     public void loginExistingUserSuccess() {
-        createdUser = TestUserFactory.createUniqueUser();
-
         ValidatableResponse response = authSteps.loginUser(createdUser.getEmail(), createdUser.getPassword());
         response.statusCode(HttpStatus.SC_OK);
 
@@ -41,10 +47,21 @@ public class LoginUserTests extends BaseApiTest {
 
     @Story("Неверные данные")
     @Test
-    @Description("Вход с неверным логином и паролем")
+    @Description("Вход с неверным email")
     @Severity(SeverityLevel.NORMAL)
-    public void loginWrongCredentialsFailure() {
-        ValidatableResponse response = authSteps.loginUser("invalid@email.ru", "wrongpass");
+    public void loginWithInvalidEmailFailure() {
+        ValidatableResponse response = authSteps.loginUser("invalid@email.ru", createdUser.getPassword());
+        response.statusCode(HttpStatus.SC_UNAUTHORIZED)
+                .body("success", equalTo(false))
+                .body("message", equalTo("email or password are incorrect"));
+    }
+
+    @Story("Неверные данные")
+    @Test
+    @Description("Вход с неверным паролем")
+    @Severity(SeverityLevel.NORMAL)
+    public void loginWithInvalidPasswordFailure() {
+        ValidatableResponse response = authSteps.loginUser(createdUser.getEmail(), "wrongpass");
         response.statusCode(HttpStatus.SC_UNAUTHORIZED)
                 .body("success", equalTo(false))
                 .body("message", equalTo("email or password are incorrect"));
